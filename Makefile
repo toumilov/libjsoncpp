@@ -7,7 +7,9 @@ AR = ar
 SHARED_LIB := libjsoncpp.so
 STATIC_LIB := libjsoncpp.a
 
-SOURCE = src/value.cpp
+SOURCE = src/value.cpp \
+		 src/error.cpp \
+		 src/json.cpp
 
 OBJ_FILES := $(SOURCE:%=$(BUILD_DIR)/%.o)
 DEPS := $(OBJ_FILES:.o=.d)
@@ -22,10 +24,10 @@ $(BUILD_DIR)/%.cpp.o: %.cpp
 all: static shared
 
 static: $(OBJ_FILES)
-	$(AR) rcs $(STATIC_LIB) $^
+	$(AR) rcs $(BUILD_DIR)/$(STATIC_LIB) $^
 
 shared: $(OBJ_FILES)
-	$(CXX) $^ -shared -o $(SHARED_LIB)
+	$(CXX) $^ -shared -o $(BUILD_DIR)/$(SHARED_LIB)
 
 test: static
 	make -f Makefile.test $@

@@ -6,12 +6,13 @@ CXX = g++
 
 SOURCE = test/main.cpp \
 		 test/variant.cpp \
-		 test/value.cpp
+		 test/value.cpp \
+		 test/json.cpp
 
 OBJ_FILES := $(SOURCE:%=$(BUILD_DIR)/%.o)
 DEPS := $(OBJ_FILES:.o=.d)
 CPPFLAGS := -std=c++11 -I$(SRC_DIR)inc -Wall -Werror -MMD -MP -g
-LIBS := -L$(SRC_DIR) -lCppUTest -lCppUTestExt -l:libjsoncpp.a
+LIBS := -L$(SRC_DIR) -L$(BUILD_DIR) -lCppUTest -lCppUTestExt -l:libjsoncpp.a
 
 $(BUILD_DIR)/%.cpp.o: %.cpp
 	mkdir -p $(dir $@)
