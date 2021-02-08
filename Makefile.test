@@ -1,0 +1,23 @@
+
+SRC_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+BUILD_DIR = $(SRC_DIR)build
+CC = gcc
+CXX = g++
+
+SOURCE = test/main.cpp \
+		 test/variant.cpp \
+		 test/value.cpp
+
+OBJ_FILES := $(SOURCE:%=$(BUILD_DIR)/%.o)
+DEPS := $(OBJ_FILES:.o=.d)
+CPPFLAGS := -std=c++11 -I$(SRC_DIR)inc -Wall -Werror -MMD -MP -g
+LIBS := -L$(SRC_DIR) -lCppUTest -lCppUTestExt -l:libjsoncpp.a
+
+$(BUILD_DIR)/%.cpp.o: %.cpp
+	mkdir -p $(dir $@)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+
+test: $(OBJ_FILES)
+	$(CXX) $^ $(LIBS) -o $(BUILD_DIR)/unittest
+	@echo Running tests...
+	@exec $(BUILD_DIR)/unittest -v
