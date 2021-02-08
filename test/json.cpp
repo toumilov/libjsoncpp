@@ -385,6 +385,48 @@ TEST(JsonGroup, ToStringTest)
 	s = Json::minimize( s, e );
 	CHECK( e.empty() );
 	STRCMP_EQUAL( "{\"array\":[123,false,\"test\"],\"double\":1.79769e+308,\"float\":1.5,\"number\":123,\"object\":{\"bool\":true,\"key\":\"value\",\"undef\":null},\"string\":\"test\"}", s.c_str() );
+
+	s = Json::format( "{\"key\":\"value\",\"list\": [123]}", e, Json::Format( ' ', 2 ) );
+	STRCMP_EQUAL( "{\n  \"key\": \"value\",\n  \"list\": [\n    123\n  ]\n}", s.c_str() );
+}
+
+TEST(JsonGroup, Utf8Test)
+{
+	std::string utf8_str = u8"{\"цена\":\"10€\",\"количество\": 5}";
+
+	CHECK( Json::validate( utf8_str, e ) );
+	CHECK( e.empty() );
+
+	auto v = Json::parse( utf8_str, e );
+	CHECK( e.empty() );
+
+	auto s = Json::build( v, e );
+	CHECK( e.empty() );
+	STRCMP_CONTAINS( "{", s.c_str() );
+	STRCMP_CONTAINS( u8"\"цена\":\"10€\"", s.c_str() );
+	STRCMP_CONTAINS( u8"\"количество\":5", s.c_str() );
+	STRCMP_CONTAINS( "}", s.c_str() );
+
+	auto s2 = Json::build( v, e, Json::Format( '\t', 1 ) );
+	CHECK( e.empty() );
+	STRCMP_CONTAINS( "{", s2.c_str() );
+	STRCMP_CONTAINS( u8"\t\"цена\": \"10€\"", s2.c_str() );
+	STRCMP_CONTAINS( u8"\t\"количество\": 5", s2.c_str() );
+	STRCMP_CONTAINS( "}", s2.c_str() );
+
+	auto s3 = Json::format( s2, e, Json::Format( ' ', 2 ) );
+	CHECK( e.empty() );
+	STRCMP_CONTAINS( "{", s3.c_str() );
+	STRCMP_CONTAINS( u8"  \"цена\": \"10€\"", s3.c_str() );
+	STRCMP_CONTAINS( u8"  \"количество\": 5", s3.c_str() );
+	STRCMP_CONTAINS( "}", s3.c_str() );
+
+	auto s4 = Json::minimize( s3, e );
+	CHECK( e.empty() );
+	STRCMP_CONTAINS( "{", s4.c_str() );
+	STRCMP_CONTAINS( u8"\"цена\":\"10€\"", s4.c_str() );
+	STRCMP_CONTAINS( u8"\"количество\":5", s4.c_str() );
+	STRCMP_CONTAINS( "}", s4.c_str() );
 }
 
 TEST(JsonGroup, SpecialCharactersTest)

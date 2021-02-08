@@ -7,6 +7,7 @@ CXX = g++
 SOURCE = test/main.cpp \
 		 test/variant.cpp \
 		 test/value.cpp \
+		 test/utf8.cpp \
 		 test/json.cpp
 
 OBJ_FILES := $(SOURCE:%=$(BUILD_DIR)/%.o)

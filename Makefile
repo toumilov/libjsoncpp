@@ -9,11 +9,12 @@ STATIC_LIB := libjsoncpp.a
 
 SOURCE = src/value.cpp \
 		 src/error.cpp \
+		 src/utf8.cpp \
 		 src/json.cpp
 
 OBJ_FILES := $(SOURCE:%=$(BUILD_DIR)/%.o)
 DEPS := $(OBJ_FILES:.o=.d)
-CPPFLAGS := -std=c++11 -I$(SRC_DIR)inc -Wall -Werror -MMD -MP
+CPPFLAGS := -std=c++11 -I$(SRC_DIR)inc -g -Wall -Werror -MMD -MP
 
 $(BUILD_DIR)/%.cpp.o: %.cpp
 	mkdir -p $(dir $@)
