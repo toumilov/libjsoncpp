@@ -8,7 +8,8 @@ SOURCE = test/main.cpp \
 		 test/variant.cpp \
 		 test/value.cpp \
 		 test/utf8.cpp \
-		 test/json.cpp
+		 test/json.cpp \
+		 test/schema.cpp
 
 OBJ_FILES := $(SOURCE:%=$(BUILD_DIR)/%.o)
 DEPS := $(OBJ_FILES:.o=.d)

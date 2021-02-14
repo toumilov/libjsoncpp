@@ -486,6 +486,6 @@ bool operator==( const T &lhs, const Value &rhs )
 
 bool operator<( const Value::Type lhs, const Value::Type rhs );
 
-std::string to_string( Value::Type type );
+const char* to_string( Value::Type type );
 
 } // namespace jsoncpp

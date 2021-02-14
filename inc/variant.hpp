@@ -94,6 +94,13 @@ public:
 	}
 
 	template <class T>
+	Variant& set( const T &v )
+	{
+		clone( v );
+		return *this;
+	}
+
+	template <class T>
 	bool is()
 	{
 		return type_ == TypeIndex<T, Types...>::value;

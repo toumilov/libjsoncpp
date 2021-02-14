@@ -988,9 +988,9 @@ bool operator<( const Value::Type lhs, const Value::Type rhs )
 	return (unsigned)lhs < (unsigned)rhs;
 }
 
-std::string to_string( Value::Type type )
+const char* to_string( Value::Type type )
 {
-	static const std::map<Value::Type, const std::string> mapping =
+	static const std::map<Value::Type, const char*> mapping =
 	{
 		{ Value::Type::None,   "null"   },
 		{ Value::Type::Bool,   "bool"   },
@@ -1009,7 +1009,7 @@ std::string to_string( Value::Type type )
 	{
 		return i->second;
 	}
-	return std::string( mapping.at( Value::Type::None ) );
+	return mapping.at( Value::Type::None );
 }
 
 } // namespace jsoncpp

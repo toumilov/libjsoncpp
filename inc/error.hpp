@@ -19,7 +19,11 @@ public:
 		UnexpectedEnding,
 		UnexpectedToken,
 		BadKey,
-		BadValue
+		BadValue,
+		UnexpectedType,
+		NoSchema,
+		OutOfRange,
+		NoMatch
 	};
 
 	Error();

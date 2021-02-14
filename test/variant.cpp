@@ -1,4 +1,5 @@
 #include <cassert>
+#include <memory>
 #include "variant.hpp"
 
 #include <CppUTest/CommandLineTestRunner.h>
@@ -35,6 +36,16 @@ TEST(VariantGroup, Constructors)
 		CHECK( v.is<std::string>() );
 		STRCMP_EQUAL( "test", v.get<std::string>()->c_str() );
 	}
+}
+
+
+TEST(VariantGroup, SmartPtr)
+{
+	std::unique_ptr<Variant<int, double> > m;
+	m.reset( new Variant<int, double>( 123 ) );
+	CHECK( m->is<int>() );
+	m.reset( new Variant<int, double>( 1.23 ) );
+	CHECK( m->is<double>() );
 }
 
 TEST(VariantGroup, GenericTypesTest)

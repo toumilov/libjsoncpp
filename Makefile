@@ -10,7 +10,8 @@ STATIC_LIB := libjsoncpp.a
 SOURCE = src/value.cpp \
 		 src/error.cpp \
 		 src/utf8.cpp \
-		 src/json.cpp
+		 src/json.cpp \
+		 src/schema.cpp
 
 OBJ_FILES := $(SOURCE:%=$(BUILD_DIR)/%.o)
 DEPS := $(OBJ_FILES:.o=.d)
