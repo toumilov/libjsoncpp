@@ -11,12 +11,8 @@ namespace jsoncpp
 
 static Value none;
 
-const Value::Int32 Value::default_int32_ = 0;
-const Value::Int64 Value::default_int64_ = 0ll;
-const Value::Uint32 Value::default_uint32_ = 0u;
-const Value::Uint64 Value::default_uint64_ = 0ull;
+const Value::Int Value::default_int_ = 0;
 const Value::Float Value::default_float_ = 0.0f;
-const Value::Double Value::default_double_ = 0.0;
 const Value::Bool Value::default_bool_ = false;
 const Value::String Value::default_string_ = "";
 const Value::Array Value::default_array_ = {};
@@ -33,23 +29,11 @@ Value::Value( const Value::Type t ) :
 	{
 	case Value::Type::None:
 		break;
-	case Value::Type::Int32:
-		data_ = default_value<Int32>();
-		break;
-	case Value::Type::Int64:
-		data_ = default_value<Int64>();
-		break;
-	case Value::Type::Uint32:
-		data_ = default_value<Uint32>();
-		break;
-	case Value::Type::Uint64:
-		data_ = default_value<Uint64>();
+	case Value::Type::Int:
+		data_ = default_value<Int>();
 		break;
 	case Value::Type::Float:
 		data_ = default_value<Float>();
-		break;
-	case Value::Type::Double:
-		data_ = default_value<Double>();
 		break;
 	case Value::Type::Bool:
 		data_ = default_value<Bool>();
@@ -110,6 +94,61 @@ Value& Value::operator=( const char *value )
 	return operator=( String( value ) );
 }
 
+Value& Value::operator=( const int32_t &value )
+{
+	return operator=( (Int)value );
+}
+
+Value& Value::operator=( const uint32_t &value )
+{
+	return operator=( (Int)value );
+}
+
+Value& Value::operator=( const uint64_t &value )
+{
+	if ( value > (uint64_t)std::numeric_limits<Int>::max() )
+	{
+		return operator=( (Int)0 );
+	}
+	return operator=( (Int)value );
+}
+
+Value& Value::operator=( const float &value )
+{
+	return operator=( (Float)value );
+}
+
+bool Value::operator==( const int32_t &value ) const
+{
+	auto i = get_int();
+	return i == (Int)value;
+}
+
+bool Value::operator==( const uint32_t &value ) const
+{
+	auto i = get_int();
+	if ( i < 0ll )
+	{
+		return false;
+	}
+	return i == (Int)value;
+}
+
+bool Value::operator==( const uint64_t &value ) const
+{
+	auto i = get_int();
+	if ( i < 0ll || value > (uint64_t)std::numeric_limits<Int>::max() )
+	{
+		return false;
+	}
+	return i == (Int)value;
+}
+
+bool Value::operator==( const float &value ) const
+{
+	return get_float() == (Float)value;
+}
+
 bool Value::operator==( const char *value ) const
 {
 	auto v = Value( value );
@@ -122,63 +161,70 @@ bool Value::operator==( const Value &value ) const
 	{
 		return false;
 	}
-	static struct
+	bool ret = true;
+	switch( data_.type_index() )
 	{
-		bool res = true;
-		const Value *v;
-		void operator()() {}
-		void operator()( const Int32  &data ) { res = data == v->get<Int32>();  }
-		void operator()( const Int64  &data ) { res = data == v->get<Int64>();  }
-		void operator()( const Uint32 &data ) { res = data == v->get<Uint32>(); }
-		void operator()( const Uint64 &data ) { res = data == v->get<Uint64>(); }
-		void operator()( const Float  &data ) { res = ( std::fabs( data - v->get<Float>() ) < std::numeric_limits<Float>::epsilon() ); }
-		void operator()( const Double &data ) { res = ( std::fabs( data - v->get<Double>() ) < std::numeric_limits<Double>::epsilon() ); }
-		void operator()( const Bool   &data ) { res = data == v->get<Bool>();   }
-		void operator()( const String &data ) { res = data == v->get<String>(); }
-		void operator()( const Array  &data )
+	case 1:
+		break;
+	case 2:
+		ret = get_bool() == value.get_bool();
+		break;
+	case 3:
+		ret = get_int() == value.get_int();
+		break;
+	case 4:
+		ret = ( std::fabs( get_float() - value.get_float() ) < std::numeric_limits<Float>::epsilon() );
+		break;
+	case 5:
+		ret = get_string() == value.get_string();
+		break;
+	case 6:
+	{
+		const auto that = get_array();
+		const auto v = value.get_array();
+		if ( that.size() != v.size() )
 		{
-			const auto value = v->get<Array>();
-			if ( data.size() != value.size() )
+			ret = false;
+		}
+		else
+		{
+			for( unsigned i = 0; i < that.size(); ++i )
 			{
-				res = false;
-			}
-			else
-			{
-				for( unsigned i = 0; i < data.size(); ++i )
+				if ( that[i] != v[i] )
 				{
-					if ( data[i] != value[i] )
-					{
-						res = false;
-						break;
-					}
+					ret = false;
+					break;
 				}
 			}
 		}
-		void operator()( const Object &data )
+		break;
+	}
+	case 7:
+	{
+		const auto that = get_object();
+		const auto v = value.get_object();
+		if ( that.size() != v.size() )
 		{
-			const auto value = v->get<Object>();
-			if ( data.size() != value.size() )
+			ret = false;
+		}
+		else
+		{
+			for( const auto &i : that )
 			{
-				res = false;
-			}
-			else
-			{
-				for( const auto &i : data )
+				auto element = v.find( i.first );
+				if ( element == v.end() || element->second != i.second )
 				{
-					auto element = value.find( i.first );
-					if ( element == value.end() || element->second != i.second )
-					{
-						res = false;
-						break;
-					}
+					ret = false;
+					break;
 				}
 			}
 		}
-	} visitor;
-
-	visitor.v = &value;
-	data_.accept( visitor );
-	return visitor.res;
+		break;
+	}
+	default:
+		break;
+	}
+	return ret;
 }
 
 Value::operator bool() const
@@ -326,24 +372,25 @@ Value& Value::erase( const std::string &key )
 
 Value::Type Value::type() const
 {
-	static struct
+	switch( data_.type_index() )
 	{
-		Value::Type t = Value::Type::None;
-		void operator()() { t = Type::None; }
-		void operator()( const Int32& ) { t = Type::Int32; }
-		void operator()( const Int64& ) { t = Type::Int64; }
-		void operator()( const Uint32& ) { t = Type::Uint32; }
-		void operator()( const Uint64& ) { t = Type::Uint64; }
-		void operator()( const Float& ) { t = Type::Float; }
-		void operator()( const Double& ) { t = Type::Double; }
-		void operator()( const Bool& ) { t = Type::Bool; }
-		void operator()( const String& ) { t = Type::String; }
-		void operator()( const Array& ) { t = Type::Array; }
-		void operator()( const Object& ) { t = Type::Object; }
-	} visitor;
-
-	data_.accept( visitor );
-	return visitor.t;
+	case 1:
+		return Type::None;
+	case 2:
+		return Type::Bool;
+	case 3:
+		return Type::Int;
+	case 4:
+		return Type::Float;
+	case 5:
+		return Type::String;
+	case 6:
+		return Type::Array;
+	case 7:
+		return Type::Object;
+	default:
+		return Type::None;
+	}
 }
 
 bool Value::has( unsigned index ) const
@@ -380,11 +427,6 @@ void Value::accept( ValueVisitor *visitor ) const
 	data_.accept( *visitor );
 }
 
-bool Value::is_none() const
-{
-	return is( Type::None );
-}
-
 bool Value::empty() const
 {
 	return is_none();
@@ -398,24 +440,25 @@ void Value::clear()
 
 unsigned Value::size() const
 {
-	struct
+	switch( data_.type_index() )
 	{
-		unsigned size = 0;
-		void operator()() {}
-		void operator()( const Int32& )	{ size = sizeof( Int32 );  }
-		void operator()( const Int64& )	{ size = sizeof( Int64 );  }
-		void operator()( const Uint32& )   { size = sizeof( Uint32 ); }
-		void operator()( const Uint64& )   { size = sizeof( Uint64 ); }
-		void operator()( const Float& )	{ size = sizeof( Float );  }
-		void operator()( const Double& )   { size = sizeof( Double ); }
-		void operator()( const Bool& )	 { size = sizeof( Bool );   }
-		void operator()( const String &s ) { size = s.size(); }
-		void operator()( const Array &a )  { size = a.size(); }
-		void operator()( const Object &o ) { size = o.size(); }
-	} visitor;
-
-	data_.accept( visitor );
-	return visitor.size;
+	case 1:
+		return 0u;
+	case 2:
+		return sizeof( Bool );
+	case 3:
+		return sizeof( Int );
+	case 4:
+		return sizeof( Float );
+	case 5:
+		return get_string().size();
+	case 6:
+		return get_array().size();
+	case 7:
+		return get_object().size();
+	default:
+		return 0u;
+	}
 }
 
 bool Value::is( Type t ) const
@@ -423,13 +466,9 @@ bool Value::is( Type t ) const
 	return type() == t;
 }
 
-const Value::Int32& Value::default_value( const Value::Int32* )   { return default_int32_;  }
-const Value::Int64& Value::default_value( const Value::Int64* )   { return default_int64_;  }
-const Value::Uint32& Value::default_value( const Value::Uint32* ) { return default_uint32_; }
-const Value::Uint64& Value::default_value( const Value::Uint64* ) { return default_uint64_; }
+const Value::Int& Value::default_value( const Value::Int* )       { return default_int_;    }
 const Value::Float& Value::default_value( const Value::Float* )   { return default_float_;  }
-const Value::Double& Value::default_value( const Value::Double* ) { return default_double_; }
-const Value::Bool& Value::default_value( const Value::Bool* )	 { return default_bool_;   }
+const Value::Bool& Value::default_value( const Value::Bool* )     { return default_bool_;   }
 const Value::String& Value::default_value( const Value::String* ) { return default_string_; }
 const Value::Array& Value::default_value( const Value::Array* )   { return default_array_;  }
 const Value::Object& Value::default_value( const Value::Object* ) { return default_object_; }
@@ -444,12 +483,8 @@ Value Value::as( Type t ) const
 		{
 		case Value::Type::None:   break;
 		case Value::Type::Bool:   break;
-		case Value::Type::Int32:  break;
-		case Value::Type::Int64:  break;
-		case Value::Type::Uint32: break;
-		case Value::Type::Uint64: break;
+		case Value::Type::Int:    break;
 		case Value::Type::Float:  break;
-		case Value::Type::Double: break;
 		case Value::Type::String: v = "null"; break;
 		case Value::Type::Array:  break;
 		case Value::Type::Object: break;
@@ -462,110 +497,27 @@ Value Value::as( Type t ) const
 			{
 			case Value::Type::None:   break;
 			case Value::Type::Bool:   v = (Bool)*data_.get<Bool>(); break;
-			case Value::Type::Int32:  v = (Int32)*data_.get<Bool>(); break;
-			case Value::Type::Int64:  v = (Int64)*data_.get<Bool>(); break;
-			case Value::Type::Uint32: v = (Uint32)*data_.get<Bool>(); break;
-			case Value::Type::Uint64: v = (Uint64)*data_.get<Bool>(); break;
+			case Value::Type::Int:    v = (Int)*data_.get<Bool>(); break;
 			case Value::Type::Float:  v = (Float)*data_.get<Bool>(); break;
-			case Value::Type::Double: v = (Double)*data_.get<Bool>(); break;
 			case Value::Type::String: v = *data_.get<Bool>() ? "true": "false"; break;
 			case Value::Type::Array:  break;
 			case Value::Type::Object: break;
 			}
 		}
 		break;
-	case Value::Type::Int32:
+	case Value::Type::Int:
 		if ( is_convertable( t ) )
 		{
 			switch( t )
 			{
 			case Value::Type::None:   break;
-			case Value::Type::Bool:   v = (Bool)*data_.get<Int32>(); break;
-			case Value::Type::Int32:  v = (Int32)*data_.get<Int32>(); break;
-			case Value::Type::Int64:  v = (Int64)*data_.get<Int32>(); break;
-			case Value::Type::Uint32: v = (Uint32)*data_.get<Int32>(); break;
-			case Value::Type::Uint64: v = (Uint64)*data_.get<Int32>(); break;
-			case Value::Type::Float:  v = (Float)*data_.get<Int32>(); break;
-			case Value::Type::Double: v = (Double)*data_.get<Int32>(); break;
-			case Value::Type::String:
-			{
-				char buf[12];
-				snprintf( buf, sizeof( buf ), "%d", *data_.get<Int32>() );
-				v = std::string( buf );
-				break;
-			}
-			case Value::Type::Array:  break;
-			case Value::Type::Object: break;
-			}
-		}
-		break;
-	case Value::Type::Int64:
-		if ( is_convertable( t ) )
-		{
-			switch( t )
-			{
-			case Value::Type::None:   break;
-			case Value::Type::Bool:   v = (Bool)*data_.get<Int64>(); break;
-			case Value::Type::Int32:  v = (Int32)*data_.get<Int64>(); break;
-			case Value::Type::Int64:  v = (Int64)*data_.get<Int64>(); break;
-			case Value::Type::Uint32: v = (Uint32)*data_.get<Int64>(); break;
-			case Value::Type::Uint64: v = (Uint64)*data_.get<Int64>(); break;
-			case Value::Type::Float:  v = (Float)*data_.get<Int64>(); break;
-			case Value::Type::Double: v = (Double)*data_.get<Int64>(); break;
+			case Value::Type::Bool:   v = (Bool)*data_.get<Int>(); break;
+			case Value::Type::Int:    v = (Int)*data_.get<Int>(); break;
+			case Value::Type::Float:  v = (Float)*data_.get<Int>(); break;
 			case Value::Type::String:
 			{
 				char buf[21];
-				snprintf( buf, sizeof( buf ), "%" PRId64, *data_.get<Int64>() );
-				v = std::string( buf );
-				break;
-			}
-			case Value::Type::Array:  break;
-			case Value::Type::Object: break;
-			}
-		}
-		break;
-	case Value::Type::Uint32:
-		if ( is_convertable( t ) )
-		{
-			switch( t )
-			{
-			case Value::Type::None:   break;
-			case Value::Type::Bool:   v = (Bool)*data_.get<Uint32>(); break;
-			case Value::Type::Int32:  v = (Int32)*data_.get<Uint32>(); break;
-			case Value::Type::Int64:  v = (Int64)*data_.get<Uint32>(); break;
-			case Value::Type::Uint32: v = (Uint32)*data_.get<Uint32>(); break;
-			case Value::Type::Uint64: v = (Uint64)*data_.get<Uint32>(); break;
-			case Value::Type::Float:  v = (Float)*data_.get<Uint32>(); break;
-			case Value::Type::Double: v = (Double)*data_.get<Uint32>(); break;
-			case Value::Type::String:
-			{
-				char buf[12];
-				snprintf( buf, sizeof( buf ), "%u", *data_.get<Uint32>() );
-				v = std::string( buf );
-				break;
-			}
-			case Value::Type::Array:  break;
-			case Value::Type::Object: break;
-			}
-		}
-		break;
-	case Value::Type::Uint64:
-		if ( is_convertable( t ) )
-		{
-			switch( t )
-			{
-			case Value::Type::None:   break;
-			case Value::Type::Bool:   v = (Bool)*data_.get<Uint64>(); break;
-			case Value::Type::Int32:  v = (Int32)*data_.get<Uint64>(); break;
-			case Value::Type::Int64:  v = (Int64)*data_.get<Uint64>(); break;
-			case Value::Type::Uint32: v = (Uint32)*data_.get<Uint64>(); break;
-			case Value::Type::Uint64: v = (Uint64)*data_.get<Uint64>(); break;
-			case Value::Type::Float:  v = (Float)*data_.get<Uint64>(); break;
-			case Value::Type::Double: v = (Double)*data_.get<Uint64>(); break;
-			case Value::Type::String:
-			{
-				char buf[21];
-				snprintf( buf, sizeof( buf ), "%" PRIu64, *data_.get<Uint64>() );
+				snprintf( buf, sizeof( buf ), "%" PRId64, *data_.get<Int>() );
 				v = std::string( buf );
 				break;
 			}
@@ -581,41 +533,12 @@ Value Value::as( Type t ) const
 			{
 			case Value::Type::None:   break;
 			case Value::Type::Bool:   v = (Bool)*data_.get<Float>(); break;
-			case Value::Type::Int32:  v = (Int32)*data_.get<Float>(); break;
-			case Value::Type::Int64:  v = (Int64)*data_.get<Float>(); break;
-			case Value::Type::Uint32: v = (Uint32)*data_.get<Float>(); break;
-			case Value::Type::Uint64: v = (Uint64)*data_.get<Float>(); break;
+			case Value::Type::Int:    v = (Int)*data_.get<Float>(); break;
 			case Value::Type::Float:  v = (Float)*data_.get<Float>(); break;
-			case Value::Type::Double: v = (Double)*data_.get<Float>(); break;
 			case Value::Type::String:
 			{
 				char buf[50];
 				snprintf( buf, sizeof( buf ), "%g", *data_.get<Float>() );
-				v = std::string( buf );
-				break;
-			}
-			case Value::Type::Array:  break;
-			case Value::Type::Object: break;
-			}
-		}
-		break;
-	case Value::Type::Double:
-		if ( is_convertable( t ) )
-		{
-			switch( t )
-			{
-			case Value::Type::None:   break;
-			case Value::Type::Bool:   v = (Bool)*data_.get<Double>(); break;
-			case Value::Type::Int32:  v = (Int32)*data_.get<Double>(); break;
-			case Value::Type::Int64:  v = (Int64)*data_.get<Double>(); break;
-			case Value::Type::Uint32: v = (Uint32)*data_.get<Double>(); break;
-			case Value::Type::Uint64: v = (Uint64)*data_.get<Double>(); break;
-			case Value::Type::Float:  v = (Float)*data_.get<Double>(); break;
-			case Value::Type::Double: v = (Double)*data_.get<Double>(); break;
-			case Value::Type::String:
-			{
-				char buf[320];
-				snprintf( buf, sizeof( buf ), "%g", *data_.get<Double>() );
 				v = std::string( buf );
 				break;
 			}
@@ -637,34 +560,14 @@ Value Value::as( Type t ) const
 				v = ( s == "true" || s == "1" ) ? true : false;
 				break;
 			}
-			case Value::Type::Int32:
+			case Value::Type::Int:
 			{
-				v = (Value::Int32)strtol( s.c_str(), nullptr, 10 );
-				break;
-			}
-			case Value::Type::Int64:
-			{
-				v = (Value::Int64)strtoll( s.c_str(), nullptr, 10 );
-				break;
-			}
-			case Value::Type::Uint32:
-			{
-				v = (Value::Uint32)strtoul( s.c_str(), nullptr, 10 );
-				break;
-			}
-			case Value::Type::Uint64:
-			{
-				v = (Value::Uint64)strtoull( s.c_str(), nullptr, 10 );
+				v = (Value::Int)strtol( s.c_str(), nullptr, 10 );
 				break;
 			}
 			case Value::Type::Float:
 			{
-				v = (Value::Float)strtof( s.c_str(), nullptr );
-				break;
-			}
-			case Value::Type::Double:
-			{
-				v = (Value::Double)strtod( s.c_str(), nullptr );
+				v = (Value::Float)strtod( s.c_str(), nullptr );
 				break;
 			}
 			case Value::Type::String:
@@ -694,55 +597,6 @@ Value Value::as( Type t ) const
 	return v;
 }
 
-Value::Int32 Value::as_int32() const
-{
-	return as( Value::Type::Int32 ).get<Value::Int32>();
-}
-
-Value::Int64 Value::as_int64() const
-{
-	return as( Value::Type::Int64 ).get<Value::Int64>();
-}
-
-Value::Uint32 Value::as_uint32() const
-{
-	return as( Value::Type::Uint32 ).get<Value::Uint32>();
-}
-
-Value::Uint64 Value::as_uint64() const
-{
-	return as( Value::Type::Uint64 ).get<Value::Uint64>();
-}
-
-Value::Float Value::as_float() const
-{
-	return as( Value::Type::Float ).get<Value::Float>();
-}
-
-Value::Double Value::as_double() const
-{
-	return as( Value::Type::Double ).get<Value::Double>();
-}
-
-Value::Bool Value::as_bool() const
-{
-	return as( Value::Type::Bool ).get<Value::Bool>();
-}
-
-Value::String Value::as_string() const
-{
-	return as( Value::Type::String ).get<Value::String>();
-}
-
-Value::Array Value::as_array() const
-{
-	return as( Value::Type::Array ).get<Value::Array>();
-}
-
-Value::Object Value::as_object() const
-{
-	return as( Value::Type::Object ).get<Value::Object>();
-}
 
 bool Value::is_convertable( const Value::Type t ) const
 {
@@ -753,12 +607,8 @@ bool Value::is_convertable( const Value::Type t ) const
 		{
 		case Value::Type::None:   return true;
 		case Value::Type::Bool:   return false;
-		case Value::Type::Int32:  return false;
-		case Value::Type::Int64:  return false;
-		case Value::Type::Uint32: return false;
-		case Value::Type::Uint64: return false;
+		case Value::Type::Int:    return false;
 		case Value::Type::Float:  return false;
-		case Value::Type::Double: return false;
 		case Value::Type::String: return false;
 		case Value::Type::Array:  return false;
 		case Value::Type::Object: return false;
@@ -769,114 +619,32 @@ bool Value::is_convertable( const Value::Type t ) const
 		{
 		case Value::Type::None:   return true;
 		case Value::Type::Bool:   return true;
-		case Value::Type::Int32:  return true;
-		case Value::Type::Int64:  return true;
-		case Value::Type::Uint32: return true;
-		case Value::Type::Uint64: return true;
+		case Value::Type::Int:    return true;
 		case Value::Type::Float:  return true;
-		case Value::Type::Double: return true;
 		case Value::Type::String: return true;
 		case Value::Type::Array:  return false;
 		case Value::Type::Object: return false;
 		}
 		break;
-	case Value::Type::Int32://-2147483648 : 2147483647
+	case Value::Type::Int: //-9223372036854775808 : 9223372036854775807
 		switch( t )
 		{
 		case Value::Type::None:   return true;
 		case Value::Type::Bool:   return true;
-		case Value::Type::Int32:  return true;
-		case Value::Type::Int64:  return true;
-		case Value::Type::Uint32: return get<Int32>() >= 0;
-		case Value::Type::Uint64: return get<Int32>() >= 0;
+		case Value::Type::Int:    return true;
 		case Value::Type::Float:  return true;
-		case Value::Type::Double: return true;
 		case Value::Type::String: return true;
 		case Value::Type::Array:  return false;
 		case Value::Type::Object: return false;
 		}
 		break;
-	case Value::Type::Int64: //-9223372036854775808 : 9223372036854775807
+	case Value::Type::Float: //2.22507e-308 : 1.79769e+308
 		switch( t )
 		{
 		case Value::Type::None:   return true;
 		case Value::Type::Bool:   return true;
-		case Value::Type::Int32:
-			return ( get<Int64>() >= (Int64)std::numeric_limits<Int32>::min() &&
-					 get<Int64>() <= (Int64)std::numeric_limits<Int32>::max() );
-		case Value::Type::Int64:  return true;
-		case Value::Type::Uint32:
-		{
-			return ( get<Int64>() >= 0 &&
-					 get<Int64>() <= std::numeric_limits<Uint32>::max() );
-		}
-		case Value::Type::Uint64: return get<Int64>() >= 0;
+		case Value::Type::Int:    return false;
 		case Value::Type::Float:  return true;
-		case Value::Type::Double: return true;
-		case Value::Type::String: return true;
-		case Value::Type::Array:  return false;
-		case Value::Type::Object: return false;
-		}
-		break;
-	case Value::Type::Uint32: //0 : 4294967295
-		switch( t )
-		{
-		case Value::Type::None:   return true;
-		case Value::Type::Bool:   return true;
-		case Value::Type::Int32:  return get<Uint32>() <= (Uint32)std::numeric_limits<Int32>::max();
-		case Value::Type::Int64:  return true;
-		case Value::Type::Uint32: return true;
-		case Value::Type::Uint64: return true;
-		case Value::Type::Float:  return true;
-		case Value::Type::Double: return true;
-		case Value::Type::String: return true;
-		case Value::Type::Array:  return false;
-		case Value::Type::Object: return false;
-		}
-		break;
-	case Value::Type::Uint64: //0 : 18446744073709551615
-		switch( t )
-		{
-		case Value::Type::None:   return true;
-		case Value::Type::Bool:   return true;
-		case Value::Type::Int32:  return get<Uint64>() <= (Uint64)std::numeric_limits<Int32>::max();
-		case Value::Type::Int64:  return get<Uint64>() <= (Uint64)std::numeric_limits<Int64>::max();
-		case Value::Type::Uint32: return get<Uint64>() <= (Uint64)std::numeric_limits<Uint32>::max();
-		case Value::Type::Uint64: return true;
-		case Value::Type::Float:  return true;
-		case Value::Type::Double: return true;
-		case Value::Type::String: return true;
-		case Value::Type::Array:  return false;
-		case Value::Type::Object: return false;
-		}
-		break;
-	case Value::Type::Float: //1.17549e-38 : 3.40282e+38
-		switch( t )
-		{
-		case Value::Type::None:   return true;
-		case Value::Type::Bool:   return true;
-		case Value::Type::Int32:  return false;
-		case Value::Type::Int64:  return false;
-		case Value::Type::Uint32: return false;
-		case Value::Type::Uint64: return false;
-		case Value::Type::Float:  return true;
-		case Value::Type::Double: return true;
-		case Value::Type::String: return true;
-		case Value::Type::Array:  return false;
-		case Value::Type::Object: return false;
-		}
-		break;
-	case Value::Type::Double: //2.22507e-308 : 1.79769e+308
-		switch( t )
-		{
-		case Value::Type::None:   return true;
-		case Value::Type::Bool:   return true;
-		case Value::Type::Int32:  return false;
-		case Value::Type::Int64:  return false;
-		case Value::Type::Uint32: return false;
-		case Value::Type::Uint64: return false;
-		case Value::Type::Float:  return false;
-		case Value::Type::Double: return true;
 		case Value::Type::String: return true;
 		case Value::Type::Array:  return false;
 		case Value::Type::Object: return false;
@@ -892,15 +660,7 @@ bool Value::is_convertable( const Value::Type t ) const
 			std::transform( s.begin(), s.end(), s.begin(), tolower );
 			return ( s == "true" || s == "1" || s == "false" || s == "0" );
 		}
-		case Value::Type::Int32:
-		{
-			auto s = get<String>();
-			char* end_ptr = nullptr;
-			errno = 0;
-			auto ret __attribute__((unused)) = strtol( s.c_str(), &end_ptr, 10 );
-			return ( errno == 0 && end_ptr == ( s.data() + s.length() ) );
-		}
-		case Value::Type::Int64:
+		case Value::Type::Int:
 		{
 			auto s = get<String>();
 			char* end_ptr = nullptr;
@@ -908,33 +668,7 @@ bool Value::is_convertable( const Value::Type t ) const
 			auto ret __attribute__((unused)) = strtoll( s.c_str(), &end_ptr, 10 );
 			return ( errno == 0 && end_ptr == ( s.data() + s.length() ) );
 		}
-		case Value::Type::Uint32:
-		{
-			auto s = get<String>();
-			if ( s[0] == '-' ) return false;
-			char* end_ptr = nullptr;
-			errno = 0;
-			auto ret __attribute__((unused)) = strtoul( s.c_str(), &end_ptr, 10 );
-			return ( errno == 0 && end_ptr == ( (char*)s.data() + s.length() ) );
-		}
-		case Value::Type::Uint64:
-		{
-			auto s = get<String>();
-			if ( s[0] == '-' ) return false;
-			char* end_ptr = nullptr;
-			errno = 0;
-			auto ret __attribute__((unused)) = strtoull( s.c_str(), &end_ptr, 10 );
-			return ( errno == 0 && end_ptr == ( s.data() + s.length() ) );
-		}
 		case Value::Type::Float:
-		{
-			auto s = get<String>();
-			char* end_ptr = nullptr;
-			errno = 0;
-			auto ret __attribute__((unused)) = strtof( s.c_str(), &end_ptr );
-			return ( errno == 0 && end_ptr == ( s.data() + s.length() ) );
-		}
-		case Value::Type::Double:
 		{
 			auto s = get<String>();
 			char* end_ptr = nullptr;
@@ -952,12 +686,8 @@ bool Value::is_convertable( const Value::Type t ) const
 		{
 		case Value::Type::None:   return true;
 		case Value::Type::Bool:   return false;
-		case Value::Type::Int32:  return false;
-		case Value::Type::Int64:  return false;
-		case Value::Type::Uint32: return false;
-		case Value::Type::Uint64: return false;
+		case Value::Type::Int:    return false;
 		case Value::Type::Float:  return false;
-		case Value::Type::Double: return false;
 		case Value::Type::String: return false;
 		case Value::Type::Array:  return true;
 		case Value::Type::Object: return false;
@@ -968,12 +698,8 @@ bool Value::is_convertable( const Value::Type t ) const
 		{
 		case Value::Type::None:   return true;
 		case Value::Type::Bool:   return false;
-		case Value::Type::Int32:  return false;
-		case Value::Type::Int64:  return false;
-		case Value::Type::Uint32: return false;
-		case Value::Type::Uint64: return false;
+		case Value::Type::Int:    return false;
 		case Value::Type::Float:  return false;
-		case Value::Type::Double: return false;
 		case Value::Type::String: return false;
 		case Value::Type::Array:  return false;
 		case Value::Type::Object: return true;
@@ -981,6 +707,47 @@ bool Value::is_convertable( const Value::Type t ) const
 		break;
 	}
 	return false;
+}
+
+int32_t Value::as_int32() const
+{
+	Int i = as( Value::Type::Int ).get_int();
+	if ( i > (Int)std::numeric_limits<int32_t>::max() )
+	{
+		return 0;
+	}
+	return (int32_t)i;
+}
+
+uint32_t Value::as_uint32() const
+{
+	Int i = as( Value::Type::Int ).get_int();
+	if ( i < 0ll )
+	{
+		return 0u;
+	}
+	return (uint32_t)i;
+}
+
+uint64_t Value::as_uint64() const
+{
+	Int i = as( Value::Type::Int ).get_int();
+	if ( i < 0ll )
+	{
+		return 0ull;
+	}
+	return (uint64_t)i;
+}
+
+float Value::as_float() const
+{
+	Float f = as( Value::Type::Float ).get_float();
+	if ( f < (Float)std::numeric_limits<float>::min() ||
+		 f > (Float)std::numeric_limits<float>::max() )
+	{
+		return 0.0f;
+	}
+	return (float)f;
 }
 
 bool operator<( const Value::Type lhs, const Value::Type rhs )
@@ -994,12 +761,8 @@ const char* to_string( Value::Type type )
 	{
 		{ Value::Type::None,   "null"   },
 		{ Value::Type::Bool,   "bool"   },
-		{ Value::Type::Int32,  "int32"  },
-		{ Value::Type::Int64,  "int64"  },
-		{ Value::Type::Uint32, "uint32" },
-		{ Value::Type::Uint64, "uint64" },
+		{ Value::Type::Int,    "int"    },
 		{ Value::Type::Float,  "float"  },
-		{ Value::Type::Double, "double" },
 		{ Value::Type::String, "string" },
 		{ Value::Type::Array,  "array"  },
 		{ Value::Type::Object, "object" }

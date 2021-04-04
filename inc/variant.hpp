@@ -120,6 +120,11 @@ public:
 		return reinterpret_cast<const T*>( &data_ );
 	}
 
+	unsigned type_index() const
+	{
+		return type_;
+	}
+
 	void clear()
 	{
 		if ( type_ )

@@ -24,12 +24,8 @@ public:
 	enum class Type
 	{
 		None = 0,
-		Int32,
-		Int64,
-		Uint32,
-		Uint64,
+		Int,
 		Float,
-		Double,
 		Bool,
 		String,
 		Array,
@@ -39,12 +35,8 @@ public:
 	 * @brief Value types.
 	 */
 	typedef void* None;
-	typedef int32_t Int32;
-	typedef int64_t Int64;
-	typedef uint32_t Uint32;
-	typedef uint64_t Uint64;
-	typedef float Float;
-	typedef double Double;
+	typedef int64_t Int;
+	typedef double Float;
 	typedef bool Bool;
 	typedef std::string String;
 	typedef std::vector<Value> Array;
@@ -58,13 +50,9 @@ public:
 	struct ValueVisitor
 	{
 		virtual ~ValueVisitor() {};
-		virtual void operator()()				= 0;
-		virtual void operator()( const Int32& )  = 0;
-		virtual void operator()( const Int64& )  = 0;
-		virtual void operator()( const Uint32& ) = 0;
-		virtual void operator()( const Uint64& ) = 0;
+		virtual void operator()()                = 0;
+		virtual void operator()( const Int& )    = 0;
 		virtual void operator()( const Float& )  = 0;
-		virtual void operator()( const Double& ) = 0;
 		virtual void operator()( const Bool& )   = 0;
 		virtual void operator()( const String& ) = 0;
 		virtual void operator()( const Array& )  = 0;
@@ -83,10 +71,33 @@ public:
 			data_( std::move( rhs.data_ ) )
 	{}
 
-	template <typename T>
+	template<typename T,
+			 typename std::enable_if <std::is_same<T, None>::value     ||
+									  std::is_same<T, Int>::value      ||
+									  std::is_same<T, Float>::value    ||
+									  std::is_same<T, Bool>::value     ||
+									  std::is_same<T, String>::value   ||
+									  std::is_same<T, Array>::value    ||
+									  std::is_same<T, Object>::value>::type* = nullptr>
 	Value( const T &value )
 	{
 		data_ = value;
+		type_ = type();
+	}
+
+	template<typename T,
+			 typename std::enable_if <std::is_same<T, int32_t>::value  ||
+									  std::is_same<T, uint32_t>::value ||
+									  std::is_same<T, uint64_t>::value>::type* = nullptr>
+	Value( const T &value )
+	{
+		data_ = (Int)value;
+		type_ = type();
+	}
+
+	Value( const float &value )
+	{
+		data_ = (Float)value;
 		type_ = type();
 	}
 
@@ -101,18 +112,18 @@ public:
 	 */
 	Value& operator=( const Value &value );
 	Value& operator=( const char *value );
+	Value& operator=( const int32_t &value );
+	Value& operator=( const uint32_t &value );
+	Value& operator=( const uint64_t &value );
+	Value& operator=( const float &value );
 
 	template<typename T,
-			 typename std::enable_if <std::is_same<T, None>::value   ||
-									  std::is_same<T, Int32>::value  ||
-									  std::is_same<T, Int64>::value  ||
-									  std::is_same<T, Uint32>::value ||
-									  std::is_same<T, Uint64>::value ||
-									  std::is_same<T, Float>::value  ||
-									  std::is_same<T, Double>::value ||
-									  std::is_same<T, Bool>::value   ||
-									  std::is_same<T, String>::value ||
-									  std::is_same<T, Array>::value  ||
+			 typename std::enable_if <std::is_same<T, None>::value     ||
+									  std::is_same<T, Int>::value      ||
+									  std::is_same<T, Float>::value    ||
+									  std::is_same<T, Bool>::value     ||
+									  std::is_same<T, String>::value   ||
+									  std::is_same<T, Array>::value    ||
 									  std::is_same<T, Object>::value>::type* = nullptr>
 	Value& operator=( const T &value )
 	{
@@ -125,20 +136,21 @@ public:
 	 * @brief Comparison operators
 	 */
 	template<typename T,
-			 typename std::enable_if<std::is_same<T, None>::value   ||
-									 std::is_same<T, Int32>::value  ||
-									 std::is_same<T, Int64>::value  ||
-									 std::is_same<T, Uint32>::value ||
-									 std::is_same<T, Uint64>::value ||
-									 std::is_same<T, Float>::value  ||
-									 std::is_same<T, Double>::value ||
-									 std::is_same<T, Bool>::value   ||
+			 typename std::enable_if<std::is_same<T, None>::value     ||
+									 std::is_same<T, Int>::value      ||
+									 std::is_same<T, Float>::value    ||
+									 std::is_same<T, Bool>::value     ||
 									 std::is_same<T, String>::value>::type* = nullptr>
 	bool operator==( const T &value ) const
 	{
 		auto p_data = data_.get<T>();
 		return is<T>() && p_data && value == *p_data;
 	}
+
+	bool operator==( const int32_t &value ) const;
+	bool operator==( const uint32_t &value ) const;
+	bool operator==( const uint64_t &value ) const;
+	bool operator==( const float &value ) const;
 
 	bool operator==( const char *value ) const;
 	bool operator==( const Value &value ) const;
@@ -231,12 +243,8 @@ public:
 	 */
 	template<typename T,
 			 typename std::enable_if <std::is_same<T, None>::value   ||
-									  std::is_same<T, Int32>::value  ||
-									  std::is_same<T, Int64>::value  ||
-									  std::is_same<T, Uint32>::value ||
-									  std::is_same<T, Uint64>::value ||
+									  std::is_same<T, Int>::value    ||
 									  std::is_same<T, Float>::value  ||
-									  std::is_same<T, Double>::value ||
 									  std::is_same<T, Bool>::value   ||
 									  std::is_same<T, String>::value ||
 									  std::is_same<T, Array>::value  ||
@@ -245,6 +253,35 @@ public:
 	{
 		const T* ptr = nullptr;
 		return type( ptr ) == type_;
+	}
+
+	inline bool is_none() const
+	{
+		return data_.type_index() < 2;
+	}
+	inline bool is_bool() const
+	{
+		return data_.type_index() == 2;
+	}
+	inline bool is_int() const
+	{
+		return data_.type_index() == 3;
+	}
+	inline bool is_float() const
+	{
+		return data_.type_index() == 4;
+	}
+	inline bool is_string() const
+	{
+		return data_.type_index() == 5;
+	}
+	inline bool is_array() const
+	{
+		return data_.type_index() == 6;
+	}
+	inline bool is_object() const
+	{
+		return data_.type_index() == 7;
 	}
 
 	/**
@@ -259,6 +296,31 @@ public:
 		return v ? *v : t;
 	}
 
+	inline Int& get_int()
+	{
+		return get<Int>();
+	}
+	inline Float& get_float()
+	{
+		return get<Float>();
+	}
+	inline Bool& get_bool()
+	{
+		return get<Bool>();
+	}
+	inline String& get_string()
+	{
+		return get<String>();
+	}
+	inline Array& get_array()
+	{
+		return get<Array>();
+	}
+	inline Object& get_object()
+	{
+		return get<Object>();
+	}
+
 	/**
 	 * get Get value by specific type. Or empty value if type don't match.
 	 * @return Constant value reference by type.
@@ -270,11 +332,43 @@ public:
 		return v ? *v : default_value<T>();
 	}
 
+	inline const Int& get_int() const
+	{
+		return get<Int>();
+	}
+	inline const Float& get_float() const
+	{
+		return get<Float>();
+	}
+	inline const Bool& get_bool() const
+	{
+		return get<Bool>();
+	}
+	inline const String& get_string() const
+	{
+		return get<String>();
+	}
+	inline const Array& get_array() const
+	{
+		return get<Array>();
+	}
+	inline const Object& get_object() const
+	{
+		return get<Object>();
+	}
+
 	/**
 	 * default_value Returns default object of specific type.
 	 * @return Value reference.
 	 */
-	template <typename T>
+	template<typename T,
+			 typename std::enable_if <std::is_same<T, None>::value   ||
+									  std::is_same<T, Int>::value    ||
+									  std::is_same<T, Float>::value  ||
+									  std::is_same<T, Bool>::value   ||
+									  std::is_same<T, String>::value ||
+									  std::is_same<T, Array>::value  ||
+									  std::is_same<T, Object>::value>::type* = nullptr>
 	static const T& default_value()
 	{
 		const T* ptr = nullptr;
@@ -292,12 +386,8 @@ public:
 		{
 			Value::Type t = Value::Type::None;
 			void operator()( const None* )   { t = Type::None;   }
-			void operator()( const Int32* )  { t = Type::Int32;  }
-			void operator()( const Int64* )  { t = Type::Int64;  }
-			void operator()( const Uint32* ) { t = Type::Uint32; }
-			void operator()( const Uint64* ) { t = Type::Uint64; }
+			void operator()( const Int* )    { t = Type::Int;    }
 			void operator()( const Float* )  { t = Type::Float;  }
-			void operator()( const Double* ) { t = Type::Double; }
 			void operator()( const Bool* )   { t = Type::Bool;   }
 			void operator()( const String* ) { t = Type::String; }
 			void operator()( const Array* )  { t = Type::Array;  }
@@ -330,12 +420,6 @@ public:
 	 * @return Value instance.
 	 */
 	Value as( Type t ) const;
-
-	/**
-	 * is_none Checks if object is empty (unset).
-	 * @return True if object is none.
-	 */
-	bool is_none() const;
 
 	/**
 	 * empty Checks if object is empty (unset).
@@ -380,97 +464,108 @@ public:
 
 	/**
 	 * as_int32 Returns value as 32-bit integer.
-	 * @return Int32 value.
+	 * @return int32_t value.
 	 */
-	Int32 as_int32() const;
+	int32_t as_int32() const;
 
 	/**
 	 * as_int64 Returns value as 64-bit integer.
-	 * @return Int64 value.
+	 * @return int64_t value.
 	 */
-	Int64 as_int64() const;
+	inline Int as_int64() const
+	{
+		return as( Value::Type::Int ).get_int();
+	}
+
+	inline Int as_int() const
+	{
+		return as( Value::Type::Int ).get_int();
+	}
 
 	/**
 	 * as_uint32 Returns value as unsigned 32-bit integer.
-	 * @return Int32 value.
+	 * @return uint32_t value.
 	 */
-	Uint32 as_uint32() const;
+	uint32_t as_uint32() const;
 
 	/**
 	 * as_int64 Returns value as unsigned 64-bit integer.
-	 * @return Int64 value.
+	 * @return uint64_t value.
 	 */
-	Uint64 as_uint64() const;
+	uint64_t as_uint64() const;
 
 	/**
 	 * as_float Returns value as floating point number.
 	 * @return Float value.
 	 */
-	Float as_float() const;
+	float as_float() const;
 
 	/**
 	 * as_double Returns value as double precision floating point number.
 	 * @return Double value.
 	 */
-	Double as_double() const;
+	inline Float as_double() const
+	{
+		return as( Value::Type::Float ).get_float();
+	}
 
 	/**
 	 * as_bool Returns value as boolean.
 	 * @return Bool value.
 	 */
-	Bool as_bool() const;
+	inline Bool as_bool() const
+	{
+		return as( Value::Type::Bool ).get_bool();
+	}
 
 	/**
 	 * as_string Returns value as string.
 	 * @return String value.
 	 */
-	String as_string() const;
+	inline String as_string() const
+	{
+		return as( Value::Type::String ).get_string();
+	}
 
 	/**
 	 * as_array Returns value as array.
 	 * @return Array value.
 	 */
-	Array as_array() const;
+	inline Array as_array() const
+	{
+		return as( Value::Type::Array ).get_array();
+	}
 
 	/**
 	 * as_object Returns value as object.
 	 * @return Object value.
 	 */
-	Object as_object() const;
+	inline Object as_object() const
+	{
+		return as( Value::Type::Object ).get_object();
+	}
 
 private:
 	Type type_;
 	Variant<
 		None,
 		Bool,
-		Int32,
-		Int64,
-		Uint32,
-		Uint64,
+		Int,
 		Float,
-		Double,
 		String,
 		Array,
 		Object
 	> data_;
 
-	static const Int32 default_int32_;
-	static const Int64 default_int64_;
-	static const Uint32 default_uint32_;
-	static const Uint64 default_uint64_;
-	static const Float default_float_;
-	static const Double default_double_;
-	static const Bool default_bool_;
+	static const Int    default_int_;
+	static const Float  default_float_;
+	static const Bool   default_bool_;
 	static const String default_string_;
-	static const Array default_array_;
+	static const Array  default_array_;
 	static const Object default_object_;
 
-	static const Int32&  default_value( const Int32* );
-	static const Int64&  default_value( const Int64* );
-	static const Uint32& default_value( const Uint32* );
-	static const Uint64& default_value( const Uint64* );
+	static const Int&    default_value( const Int* );
 	static const Float&  default_value( const Float* );
-	static const Double& default_value( const Double* );
 	static const Bool&   default_value( const Bool* );
 	static const String& default_value( const String* );
 	static const Array&  default_value( const Array* );

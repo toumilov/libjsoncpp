@@ -28,12 +28,14 @@ TEST(VariantGroup, Constructors)
 		Variant<int, std::string> v( 123 );
 		CHECK_FALSE( v.empty() );
 		CHECK( v.is<int>() );
+		CHECK_EQUAL( 1u, v.type_index() );
 		CHECK_EQUAL( 123, *v.get<int>() );
 	}
 	{
 		Variant<int, std::string> v( std::string( "test" ) );
 		CHECK_FALSE( v.empty() );
 		CHECK( v.is<std::string>() );
+		CHECK_EQUAL( 2u, v.type_index() );
 		STRCMP_EQUAL( "test", v.get<std::string>()->c_str() );
 	}
 }
@@ -44,8 +46,10 @@ TEST(VariantGroup, SmartPtr)
 	std::unique_ptr<Variant<int, double> > m;
 	m.reset( new Variant<int, double>( 123 ) );
 	CHECK( m->is<int>() );
+	CHECK_EQUAL( 1u, m->type_index() );
 	m.reset( new Variant<int, double>( 1.23 ) );
 	CHECK( m->is<double>() );
+	CHECK_EQUAL( 2u, m->type_index() );
 }
 
 TEST(VariantGroup, GenericTypesTest)
@@ -54,6 +58,7 @@ TEST(VariantGroup, GenericTypesTest)
 
 	// Uninitialized variable should be empty
 	CHECK( v.empty() );
+	CHECK_EQUAL( 0u, v.type_index() );
 	CHECK_FALSE( v.is<int>() );
 	CHECK( v.get<int>() == nullptr );
 	CHECK_FALSE( v.is<bool>() );
@@ -64,6 +69,7 @@ TEST(VariantGroup, GenericTypesTest)
 	// int
 	v = 123;
 	CHECK( v.is<int>() );
+	CHECK_EQUAL( 1u, v.type_index() );
 	CHECK_EQUAL( 123, *v.get<int>() );
 	CHECK_FALSE( v.is<bool>() );
 	CHECK( v.get<bool>() == nullptr );
@@ -72,6 +78,7 @@ TEST(VariantGroup, GenericTypesTest)
 
 	// bool
 	v = true;
+	CHECK_EQUAL( 2u, v.type_index() );
 	CHECK_EQUAL( true, *v.get<bool>() );
 	CHECK_FALSE( v.is<int>() );
 	CHECK( v.get<int>() == nullptr );
@@ -80,6 +87,7 @@ TEST(VariantGroup, GenericTypesTest)
 
 	// char
 	v = 'a';
+	CHECK_EQUAL( 3u, v.type_index() );
 	CHECK_EQUAL( 'a', *v.get<char>() );
 	CHECK_FALSE( v.is<int>() );
 	CHECK( v.get<int>() == nullptr );
@@ -99,8 +107,9 @@ TEST(VariantGroup, StructTest)
 	};
 	unsigned c = 0;
 	{
-		Variant<S> v;
+		Variant<S, bool> v;
 		v = S( c );
+		CHECK_EQUAL( 1u, v.type_index() );
 		CHECK_EQUAL( 1, c );
 	}
 	CHECK_EQUAL( 0, c );

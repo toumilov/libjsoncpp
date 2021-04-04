@@ -15,7 +15,7 @@ class JsonTokenizer
 public:
 	JsonTokenizer( const std::string &json_str ) :
 		str_( json_str ),
-		it_( json_str.begin() )
+		it_( json_str.cbegin() )
 	{
 	}
 
@@ -291,36 +291,14 @@ class JsonImpl
 		Value v( token );
 		if ( token.find_first_of( ".eE" ) == std::string::npos )
 		{
-			if ( token[0] == '-' )
+			if ( v.is_convertable( Value::Type::Int ) )
 			{
-				if ( v.is_convertable( Value::Type::Int32 ) )
-				{
-					return v.as_int32();
-				}
-				else if ( v.is_convertable( Value::Type::Int64 ) )
-				{
-					return v.as_int64();
-				}
-			}
-			else
-			{
-				if ( v.is_convertable( Value::Type::Uint32 ) )
-				{
-					return v.as_uint32();
-				}
-				else if ( v.is_convertable( Value::Type::Uint64 ) )
-				{
-					return v.as_uint64();
-				}
+				return v.as_int();
 			}
 		}
 		else
 		{
 			if ( v.is_convertable( Value::Type::Float ) )
-			{
-				return v.as_float();
-			}
-			else if ( v.is_convertable( Value::Type::Double ) )
 			{
 				return v.as_double();
 			}
@@ -618,7 +596,7 @@ public:
 			{
 			case Value::Type::Array:
 			{
-				auto &arr = value.get<Value::Array>();
+				auto &arr = value.get_array();
 				auto size = arr.size();
 				s += '[';
 				if ( f.indent_size )
@@ -649,7 +627,7 @@ public:
 			}
 			case Value::Type::Object:
 			{
-				auto &obj = value.get<Value::Object>();
+				auto &obj = value.get_object();
 				auto size = obj.size();
 				s += '{';
 				if ( f.indent_size )
